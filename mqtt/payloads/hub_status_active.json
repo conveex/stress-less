@@ -1,0 +1,10 @@
+{
+  "hubId": "hub-001",
+  "status": "ACTIVE",
+  "operational_state": "ACTIVE",
+  "firmware_version": "0.1.0",
+  "ip_address": "192.168.1.105",
+  "free_heap": 142000,
+  "uptime_seconds": 3600,
+  "timestamp": "2026-05-24T22:40:00Z"
+}

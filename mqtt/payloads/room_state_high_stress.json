@@ -1,0 +1,29 @@
+{
+  "roomId": "a1b2c3d4-0000-0000-0000-000000000002",
+  "hubId": "hub-001",
+  "operationalState": "ACTIVE",
+  "activeProfile": "Calma profunda",
+  "devices": [
+    {
+      "deviceKey": "led-rgb-001",
+      "on": true,
+      "brightness": 25,
+      "color": "#5064C8"
+    },
+    {
+      "deviceKey": "fan-001",
+      "on": true,
+      "speed": "LOW"
+    },
+    {
+      "deviceKey": "display-001",
+      "on": true,
+      "message": "Respira profundo"
+    },
+    {
+      "deviceKey": "buzzer-001",
+      "on": false
+    }
+  ],
+  "timestamp": "2026-05-24T22:47:00Z"
+}

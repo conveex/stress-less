@@ -1,0 +1,17 @@
+{
+  "hubId": "hub-001",
+  "eventType": "COMMAND_ACK",
+  "severity": "INFO",
+  "commandId": "c1b2c3d4-0000-0000-0000-000000000100",
+  "description": "Comandos ejecutados correctamente",
+  "metadata": {
+    "executed": [
+      "led-rgb-001",
+      "fan-001",
+      "display-001",
+      "buzzer-001"
+    ],
+    "failed": []
+  },
+  "timestamp": "2026-05-24T22:45:00Z"
+}

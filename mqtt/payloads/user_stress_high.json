@@ -1,0 +1,18 @@
+{
+  "userId": "a1b2c3d4-0000-0000-0000-000000000001",
+  "detectedState": "HIGH_STRESS",
+  "confidence": 0.82,
+  "reason": {
+    "bpm": "above_baseline",
+    "gsr": "above_baseline",
+    "movement": "low",
+    "duration": "sustained"
+  },
+  "bpmCurrent": 110.0,
+  "gsrCurrent": 850.0,
+  "bpmBaseline": 70.0,
+  "gsrBaseline": 500.0,
+  "bandStatus": "CONNECTED",
+  "bandBattery": 85,
+  "timestamp": "2026-05-24T22:46:00Z"
+}

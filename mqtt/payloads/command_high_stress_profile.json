@@ -1,0 +1,38 @@
+{
+  "commandId": "c1b2c3d4-0000-0000-0000-000000000100",
+  "hubId": "hub-001",
+  "source": "AUTOMATION",
+  "triggeredByState": "HIGH_STRESS",
+  "actions": [
+    {
+      "deviceKey": "led-rgb-001",
+      "action": "SET_BRIGHTNESS",
+      "value": 25
+    },
+    {
+      "deviceKey": "led-rgb-001",
+      "action": "SET_COLOR_RGB",
+      "value": {
+        "r": 80,
+        "g": 100,
+        "b": 200
+      }
+    },
+    {
+      "deviceKey": "fan-001",
+      "action": "SET_SPEED",
+      "value": "LOW"
+    },
+    {
+      "deviceKey": "display-001",
+      "action": "SHOW_MESSAGE",
+      "value": "Respira profundo"
+    },
+    {
+      "deviceKey": "buzzer-001",
+      "action": "TURN_OFF",
+      "value": false
+    }
+  ],
+  "timestamp": "2026-05-24T22:44:00Z"
+}

@@ -1,0 +1,45 @@
+{
+  "hubId": "hub-001",
+  "devices": [
+    {
+      "deviceKey": "led-rgb-001",
+      "name": "LED RGB",
+      "type": "LIGHT",
+      "capabilities": ["ON_OFF", "BRIGHTNESS", "COLOR"],
+      "currentState": {
+        "on": true,
+        "brightness": 80,
+        "color": "#FFFFFF"
+      }
+    },
+    {
+      "deviceKey": "fan-001",
+      "name": "Ventilador",
+      "type": "FAN",
+      "capabilities": ["ON_OFF", "SPEED"],
+      "currentState": {
+        "on": false
+      }
+    },
+    {
+      "deviceKey": "display-001",
+      "name": "LCD 16x2",
+      "type": "DISPLAY",
+      "capabilities": ["ON_OFF", "MESSAGE"],
+      "currentState": {
+        "on": true,
+        "message": "Iniciando..."
+      }
+    },
+    {
+      "deviceKey": "buzzer-001",
+      "name": "Buzzer audio",
+      "type": "AUDIO",
+      "capabilities": ["ON_OFF", "VOLUME"],
+      "currentState": {
+        "on": false
+      }
+    }
+  ],
+  "timestamp": "2026-05-24T22:41:00Z"
+}

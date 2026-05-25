@@ -1,0 +1,10 @@
+{
+  "bandId": "band-sim-001",
+  "hubId": "hub-001",
+  "bpm": 74.0,
+  "gsr": 520.0,
+  "movement": 0.08,
+  "battery": 85,
+  "source": "SIMULATED",
+  "timestamp": "2026-05-24T22:42:00Z"
+}
