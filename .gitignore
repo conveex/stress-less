@@ -1,0 +1,32 @@
+# IntelliJ / Android Studio
+.idea/
+*.iml
+.gradle/
+build/
+out/
+
+# Kotlin / Java
+target/
+
+# Android
+android/**/local.properties
+android/**/.gradle/
+android/**/build/
+
+# Arduino
+*.ino.cpp
+*.elf
+*.bin
+
+# Secrets
+.env
+.env.*
+*.key
+*.pem
+*.crt
+secrets/
+local/
+
+# OS
+.DS_Store
+Thumbs.db
