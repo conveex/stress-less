@@ -21,6 +21,8 @@ android/**/build/
 # Secrets
 .env
 .env.*
+**/.env
+**/.env.*
 *.key
 *.pem
 *.crt

@@ -1,5 +1,6 @@
 package com.stressless
 
+import com.stressless.db.DatabaseFactory
 import com.stressless.plugins.configureCors
 import com.stressless.plugins.configureMonitoring
 import com.stressless.plugins.configureRouting
@@ -12,6 +13,8 @@ fun main(args: Array<String>) {
 }
 
 fun Application.module() {
+    DatabaseFactory.init()
+
     configureMonitoring()
     configureCors()
     configureSerialization()
