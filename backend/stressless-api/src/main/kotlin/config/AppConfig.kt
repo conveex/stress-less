@@ -18,6 +18,13 @@ object AppConfig {
     val databasePassword: String = envRequired("DATABASE_PASSWORD")
     val databaseSsl: Boolean = env("DATABASE_SSL", "true").toBoolean()
 
+    val mqttHost: String = envRequired("MQTT_HOST")
+    val mqttPort: Int = env("MQTT_PORT", "8883").toInt()
+    val mqttUsername: String = envRequired("MQTT_USERNAME")
+    val mqttPassword: String = envRequired("MQTT_PASSWORD")
+    val mqttClientId: String = env("MQTT_CLIENT_ID", "backend-stressless")
+    val mqttTls: Boolean = env("MQTT_TLS", "true").toBoolean()
+
     val jdbcUrl: String
         get() {
             val sslMode = if (databaseSsl) "require" else "disable"
