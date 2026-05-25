@@ -84,6 +84,7 @@ object MqttClientService {
                 lastMessagePayloadPreview = payload.take(300)
 
                 log.info("MQTT message received | topic={} | payload={}", topic, payload)
+                com.stressless.mqtt.handlers.BiometricsMqttHandler.handle(topic, payload)
             }
             .send()
             .get(10, TimeUnit.SECONDS)
