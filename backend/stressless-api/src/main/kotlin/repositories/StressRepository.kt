@@ -5,7 +5,7 @@ import com.stressless.dto.stress.CurrentStressResponse
 
 object StressRepository {
 
-    fun getCurrentForDemoUser(): CurrentStressResponse? {
+    fun getCurrentForUser(userId: java.util.UUID): CurrentStressResponse? {
         DatabaseFactory.getDataSource().connection.use { connection ->
             val sql = """
                 SELECT
@@ -18,12 +18,13 @@ object StressRepository {
                     reason::text AS reason,
                     detected_at
                 FROM detected_states
-                WHERE user_id = 'a1b2c3d4-0000-0000-0000-000000000001'
+                WHERE user_id = ?
                 ORDER BY detected_at DESC
                 LIMIT 1
             """.trimIndent()
 
             connection.prepareStatement(sql).use { statement ->
+                statement.setObject(1, userId)
                 statement.executeQuery().use { rs ->
                     if (!rs.next()) {
                         return null

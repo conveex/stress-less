@@ -25,6 +25,12 @@ object AppConfig {
     val mqttClientId: String = env("MQTT_CLIENT_ID", "backend-stressless")
     val mqttTls: Boolean = env("MQTT_TLS", "true").toBoolean()
 
+    val jwtSecret: String = envRequired("JWT_SECRET")
+    val jwtIssuer: String = env("JWT_ISSUER", "stressless-api")
+    val jwtAudience: String = env("JWT_AUDIENCE", "stressless-app")
+    val jwtRealm: String = env("JWT_REALM", "stressless")
+    val jwtExpirationHours: Long = env("JWT_EXPIRATION_HOURS", "24").toLong()
+
     val jdbcUrl: String
         get() {
             val sslMode = if (databaseSsl) "require" else "disable"

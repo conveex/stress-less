@@ -1,11 +1,9 @@
 package com.stressless.repositories
 
-import com.stressless.config.DemoConfig
 import com.stressless.db.DatabaseFactory
 import com.stressless.dto.app.*
 import com.stressless.mqtt.MqttClientService
 import com.hivemq.client.mqtt.datatypes.MqttQos
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.time.Instant
 import java.util.UUID
@@ -18,7 +16,7 @@ object AppRepository {
         encodeDefaults = true
     }
 
-    fun getHome(): AppHomeResponse {
+    fun getHome(userId: UUID): AppHomeResponse {
         DatabaseFactory.getDataSource().connection.use { connection ->
             val userSql = """
                 SELECT id, name, email, is_calibrated, baseline_bpm, baseline_gsr
@@ -28,9 +26,9 @@ object AppRepository {
             """.trimIndent()
 
             val user = connection.prepareStatement(userSql).use { st ->
-                st.setObject(1, DemoConfig.DEMO_USER_ID)
+                st.setObject(1, userId)
                 st.executeQuery().use { rs ->
-                    if (!rs.next()) error("Demo user not found")
+                    if (!rs.next()) error("User not found")
 
                     AppUserSummary(
                         userId = rs.getString("id"),
@@ -47,12 +45,12 @@ object AppRepository {
             val userSummary = user.first
             val baselines = user.second
 
-            val stress = getLatestStress(connection, baselines.first, baselines.second)
-            val band = getActiveBand(connection)
-            val room = getPrimaryRoom(connection)
-            val hub = getPrimaryHub(connection)
-            val activeProfile = getLatestActiveProfile(connection, stress.detectedState)
-            val lastCommand = getLastCommand(connection)
+            val stress = getLatestStress(userId, connection, baselines.first, baselines.second)
+            val band = getActiveBand(userId, connection)
+            val room = getPrimaryRoom(userId, connection)
+            val hub = getPrimaryHub(userId, connection)
+            val activeProfile = getLatestActiveProfile(userId, connection, stress.detectedState)
+            val lastCommand = getLastCommand(userId, connection)
 
             return AppHomeResponse(
                 user = userSummary,
@@ -66,7 +64,7 @@ object AppRepository {
         }
     }
 
-    fun getRoomPrimary(): RoomPrimaryResponse {
+    fun getRoomPrimary(userId: UUID): RoomPrimaryResponse {
         DatabaseFactory.getDataSource().connection.use { connection ->
             val roomSql = """
                 SELECT r.id AS room_id, r.name,
@@ -80,7 +78,7 @@ object AppRepository {
             """.trimIndent()
 
             connection.prepareStatement(roomSql).use { st ->
-                st.setObject(1, DemoConfig.DEMO_USER_ID)
+                st.setObject(1, userId)
                 st.executeQuery().use { rs ->
                     if (!rs.next()) error("Primary room not found")
 
@@ -117,7 +115,7 @@ object AppRepository {
         }
     }
 
-    fun getBands(): BandsResponse {
+    fun getBands(userId: UUID): BandsResponse {
         DatabaseFactory.getDataSource().connection.use { connection ->
             val sql = """
                 SELECT id, band_id, serial_number, is_active, status::text, battery_level, last_seen_at, created_at
@@ -127,7 +125,7 @@ object AppRepository {
             """.trimIndent()
 
             connection.prepareStatement(sql).use { st ->
-                st.setObject(1, DemoConfig.DEMO_USER_ID)
+                st.setObject(1, userId)
                 st.executeQuery().use { rs ->
                     val bands = mutableListOf<BandResponse>()
 
@@ -152,7 +150,7 @@ object AppRepository {
         }
     }
 
-    fun getProfiles(): ProfilesResponse {
+    fun getProfiles(userId: UUID): ProfilesResponse {
         DatabaseFactory.getDataSource().connection.use { connection ->
             val sql = """
                 SELECT p.id, p.name, p.target_state::text, p.is_active, p.use_automatic_fallback,
@@ -165,7 +163,7 @@ object AppRepository {
             """.trimIndent()
 
             connection.prepareStatement(sql).use { st ->
-                st.setObject(1, DemoConfig.DEMO_USER_ID)
+                st.setObject(1, userId)
                 st.executeQuery().use { rs ->
                     val profiles = mutableListOf<ProfileResponse>()
 
@@ -189,7 +187,7 @@ object AppRepository {
         }
     }
 
-    fun getRecentEvents(limit: Int = 20): StressRecentEventsResponse {
+    fun getRecentEvents(userId: UUID, limit: Int = 20): StressRecentEventsResponse {
         DatabaseFactory.getDataSource().connection.use { connection ->
             val sql = """
                 SELECT ds.id, ds.state::text, ds.confidence, ds.detected_at, ds.resolved_at,
@@ -202,7 +200,7 @@ object AppRepository {
             """.trimIndent()
 
             connection.prepareStatement(sql).use { st ->
-                st.setObject(1, DemoConfig.DEMO_USER_ID)
+                st.setObject(1, userId)
                 st.setInt(2, limit)
 
                 st.executeQuery().use { rs ->
@@ -238,6 +236,7 @@ object AppRepository {
     }
 
     fun changeOperationalState(
+        userId: UUID,
         hubLogicalId: String,
         newState: String
     ): ChangeOperationalStateResponse {
@@ -262,7 +261,7 @@ object AppRepository {
 
             connection.prepareStatement(selectSql).use { st ->
                 st.setString(1, hubLogicalId)
-                st.setObject(2, DemoConfig.DEMO_USER_ID)
+                st.setObject(2, userId)
 
                 st.executeQuery().use { rs ->
                     if (!rs.next()) error("Hub not found")
@@ -295,6 +294,7 @@ object AppRepository {
     }
 
     fun sendManualCommand(
+        userId: UUID,
         hubLogicalId: String,
         request: ManualHubCommandRequest
     ): ManualHubCommandResponse {
@@ -317,7 +317,7 @@ object AppRepository {
 
             connection.prepareStatement(contextSql).use { st ->
                 st.setString(1, hubLogicalId)
-                st.setObject(2, DemoConfig.DEMO_USER_ID)
+                st.setObject(2, userId)
 
                 st.executeQuery().use { rs ->
                     if (!rs.next()) error("Hub not found")
@@ -358,7 +358,7 @@ object AppRepository {
             connection.prepareStatement(insertSql).use { st ->
                 st.setObject(1, hubUuid)
                 st.setObject(2, roomUuid)
-                st.setObject(3, DemoConfig.DEMO_USER_ID)
+                st.setObject(3, userId)
                 st.setString(4, payloadJson)
                 st.executeUpdate()
             }
@@ -379,6 +379,7 @@ object AppRepository {
     }
 
     private fun getLatestStress(
+        userId: UUID,
         connection: java.sql.Connection,
         baselineBpm: Double,
         baselineGsr: Double
@@ -393,7 +394,7 @@ object AppRepository {
         """.trimIndent()
 
         connection.prepareStatement(sql).use { st ->
-            st.setObject(1, DemoConfig.DEMO_USER_ID)
+            st.setObject(1, userId)
 
             st.executeQuery().use { rs ->
                 if (!rs.next()) {
@@ -428,7 +429,7 @@ object AppRepository {
         }
     }
 
-    private fun getActiveBand(connection: java.sql.Connection): AppBandSummary? {
+    private fun getActiveBand(userId: UUID, connection: java.sql.Connection): AppBandSummary? {
         val sql = """
             SELECT id, band_id, status::text, is_active, battery_level, last_seen_at
             FROM bands
@@ -438,7 +439,7 @@ object AppRepository {
         """.trimIndent()
 
         connection.prepareStatement(sql).use { st ->
-            st.setObject(1, DemoConfig.DEMO_USER_ID)
+            st.setObject(1, userId)
 
             st.executeQuery().use { rs ->
                 if (!rs.next()) return null
@@ -455,7 +456,7 @@ object AppRepository {
         }
     }
 
-    private fun getPrimaryRoom(connection: java.sql.Connection): AppRoomSummary? {
+    private fun getPrimaryRoom(userId: UUID, connection: java.sql.Connection): AppRoomSummary? {
         val sql = """
             SELECT id, name
             FROM rooms
@@ -465,7 +466,7 @@ object AppRepository {
         """.trimIndent()
 
         connection.prepareStatement(sql).use { st ->
-            st.setObject(1, DemoConfig.DEMO_USER_ID)
+            st.setObject(1, userId)
 
             st.executeQuery().use { rs ->
                 if (!rs.next()) return null
@@ -478,7 +479,7 @@ object AppRepository {
         }
     }
 
-    private fun getPrimaryHub(connection: java.sql.Connection): AppHubSummary? {
+    private fun getPrimaryHub(userId: UUID, connection: java.sql.Connection): AppHubSummary? {
         val sql = """
             SELECT h.id, h.hub_id, h.status::text, h.operational_state::text,
                    h.firmware_version, h.last_seen_at, h.ip_address
@@ -490,7 +491,7 @@ object AppRepository {
         """.trimIndent()
 
         connection.prepareStatement(sql).use { st ->
-            st.setObject(1, DemoConfig.DEMO_USER_ID)
+            st.setObject(1, userId)
 
             st.executeQuery().use { rs ->
                 if (!rs.next()) return null
@@ -509,6 +510,7 @@ object AppRepository {
     }
 
     private fun getLatestActiveProfile(
+        userId: UUID,
         connection: java.sql.Connection,
         state: String
     ): AppProfileSummary? {
@@ -522,7 +524,7 @@ object AppRepository {
         """.trimIndent()
 
         connection.prepareStatement(sql).use { st ->
-            st.setObject(1, DemoConfig.DEMO_USER_ID)
+            st.setObject(1, userId)
             st.setString(2, state)
 
             st.executeQuery().use { rs ->
@@ -537,7 +539,7 @@ object AppRepository {
         }
     }
 
-    private fun getLastCommand(connection: java.sql.Connection): AppCommandSummary? {
+    private fun getLastCommand(userId: UUID, connection: java.sql.Connection): AppCommandSummary? {
         val sql = """
             SELECT payload ->> 'commandId' AS command_id,
                    source::text,
@@ -551,7 +553,7 @@ object AppRepository {
         """.trimIndent()
 
         connection.prepareStatement(sql).use { st ->
-            st.setObject(1, DemoConfig.DEMO_USER_ID)
+            st.setObject(1, userId)
 
             st.executeQuery().use { rs ->
                 if (!rs.next()) return null

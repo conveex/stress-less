@@ -2,6 +2,7 @@ package com.stressless
 
 import com.stressless.db.DatabaseFactory
 import com.stressless.mqtt.MqttClientService
+import com.stressless.plugins.configureAuthentication
 import com.stressless.plugins.configureCors
 import com.stressless.plugins.configureMonitoring
 import com.stressless.plugins.configureRouting
@@ -21,5 +22,6 @@ fun Application.module() {
     configureCors()
     configureSerialization()
     configureStatusPages()
+    configureAuthentication()
     configureRouting()
 }

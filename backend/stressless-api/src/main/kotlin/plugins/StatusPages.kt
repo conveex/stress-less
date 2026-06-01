@@ -21,6 +21,33 @@ fun Application.configureStatusPages() {
             )
         }
 
+        exception<IllegalStateException> { call, cause ->
+            val message = cause.message ?: "Conflict"
+
+            val status = when (message) {
+                "INVALID_CREDENTIALS" -> HttpStatusCode.Unauthorized
+                "EMAIL_ALREADY_REGISTERED" -> HttpStatusCode.Conflict
+                "UNAUTHORIZED" -> HttpStatusCode.Unauthorized
+                else -> HttpStatusCode.BadRequest
+            }
+
+            val error = when (message) {
+                "INVALID_CREDENTIALS" -> "INVALID_CREDENTIALS"
+                "EMAIL_ALREADY_REGISTERED" -> "EMAIL_ALREADY_REGISTERED"
+                "UNAUTHORIZED" -> "UNAUTHORIZED"
+                else -> "BAD_REQUEST"
+            }
+
+            call.respond(
+                status,
+                ErrorResponse(
+                    error = error,
+                    message = message,
+                    timestamp = java.time.Instant.now().toString()
+                )
+            )
+        }
+
         exception<Throwable> { call, cause ->
             call.application.environment.log.error("Unhandled error", cause)
 
