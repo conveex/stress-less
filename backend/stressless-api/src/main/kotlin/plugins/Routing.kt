@@ -1,5 +1,6 @@
 package com.stressless.plugins
 
+import com.stressless.routes.appRoutes
 import com.stressless.routes.devRoutes
 import com.stressless.routes.healthRoutes
 import com.stressless.routes.stressRoutes
@@ -11,5 +12,6 @@ fun Application.configureRouting() {
         healthRoutes()
         devRoutes()
         stressRoutes()
+        appRoutes()
     }
 }
