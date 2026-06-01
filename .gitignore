@@ -29,6 +29,9 @@ android/**/build/
 secrets/
 local/
 
+# Arduino secrets
+firmware/**/arduino_secrets.h
+
 # OS
 .DS_Store
 Thumbs.db
