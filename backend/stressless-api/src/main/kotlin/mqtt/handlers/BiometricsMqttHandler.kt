@@ -77,14 +77,25 @@ object BiometricsMqttHandler {
                 classification = classification
             )
 
-            if (shouldPublishCommand(classification.state, classification.confidence)) {
-                publishCommandIfProfileExists(
-                    context = context,
-                    payload = payload,
-                    classificationState = classification.state,
-                    activeProfileId = activeProfileId,
-                    detectedStateId = detectedStateId
-                )
+            if (shouldPublishCommand(classification.state, classification.confidence, activeProfileId)) {
+                val lastAppliedState = BiometricsRepository.findLastAutomationCommandState(context)
+
+                if (lastAppliedState == classification.state) {
+                    log.info(
+                        "Automation command skipped. State already applied. state={} userId={} hubId={}",
+                        classification.state,
+                        context.userId,
+                        payload.hubId
+                    )
+                } else {
+                    publishCommandIfProfileExists(
+                        context = context,
+                        payload = payload,
+                        classificationState = classification.state,
+                        activeProfileId = activeProfileId,
+                        detectedStateId = detectedStateId
+                    )
+                }
             }
         } catch (ex: Exception) {
             log.error("Error processing biometrics MQTT message. topic={} payload={}", topic, payloadText, ex)
@@ -108,8 +119,26 @@ object BiometricsMqttHandler {
         }
     }
 
-    private fun shouldPublishCommand(state: String, confidence: Double): Boolean {
-        return confidence >= 0.60 && (state == "HIGH_STRESS" || state == "MODERATE_STRESS")
+    private fun shouldPublishCommand(
+        state: String,
+        confidence: Double,
+        activeProfileId: UUID?
+    ): Boolean {
+        if (confidence < 0.60) {
+            return false
+        }
+
+        if (activeProfileId == null) {
+            return false
+        }
+
+        return state in setOf(
+            "HIGH_STRESS",
+            "MODERATE_STRESS",
+            "NORMAL",
+            "RELAXED",
+            "MODERATE_RELAXED"
+        )
     }
 
     private fun publishCommandIfProfileExists(

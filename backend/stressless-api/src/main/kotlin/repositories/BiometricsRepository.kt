@@ -316,4 +316,34 @@ object BiometricsRepository {
             Instant.now()
         }
     }
+
+    fun findLastAutomationCommandState(
+        context: BandHubContext
+    ): String? {
+        DatabaseFactory.getDataSource().connection.use { connection ->
+            val sql = """
+            SELECT payload ->> 'triggeredByState' AS triggered_state
+            FROM commands
+            WHERE user_id = ?
+              AND hub_id = ?
+              AND source = 'AUTOMATION'
+              AND payload ->> 'triggeredByState' IS NOT NULL
+            ORDER BY sent_at DESC
+            LIMIT 1
+        """.trimIndent()
+
+            connection.prepareStatement(sql).use { statement ->
+                statement.setObject(1, context.userId)
+                statement.setObject(2, context.hubUuid)
+
+                statement.executeQuery().use { rs ->
+                    if (!rs.next()) {
+                        return null
+                    }
+
+                    return rs.getString("triggered_state")
+                }
+            }
+        }
+    }
 }
