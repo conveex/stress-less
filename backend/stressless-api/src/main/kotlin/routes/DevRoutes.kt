@@ -2,6 +2,7 @@ package com.stressless.routes
 
 import com.hivemq.client.mqtt.datatypes.MqttQos
 import com.stressless.mqtt.MqttClientService
+import com.stressless.repositories.CommandRepository
 import com.stressless.repositories.DbHealthRepository
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
@@ -17,6 +18,10 @@ fun Route.devRoutes() {
 
     get("/api/v1/dev/mqtt-health") {
         call.respond(MqttClientService.health())
+    }
+
+    get("/api/v1/dev/commands/recent") {
+        call.respond(CommandRepository.listRecent(limit = 10))
     }
 
     post("/api/v1/dev/mqtt-publish-test") {
