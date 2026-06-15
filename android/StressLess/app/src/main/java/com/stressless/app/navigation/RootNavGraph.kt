@@ -1,14 +1,14 @@
 package com.stressless.app.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.stressless.app.ui.screens.auth.login.LoginRoute
+import com.stressless.app.ui.screens.auth.register.RegisterRoute
+import com.stressless.app.ui.screens.main.MainAppRoute
+import com.stressless.app.ui.screens.splash.SplashRoute
 
 @Composable
 fun RootNavGraph() {
@@ -19,53 +19,62 @@ fun RootNavGraph() {
         startDestination = NavRoutes.SPLASH
     ) {
         composable(NavRoutes.SPLASH) {
-            PlaceholderScreen("Splash")
+            SplashRoute(
+                onSessionFound = {
+                    navController.navigateToHomeClearingBackStack()
+                },
+                onSessionMissing = {
+                    navController.navigateToLoginClearingBackStack()
+                }
+            )
         }
 
         composable(NavRoutes.LOGIN) {
-            PlaceholderScreen("Login")
+            LoginRoute(
+                onLoginSuccess = {
+                    navController.navigateToHomeClearingBackStack()
+                },
+                onGoToRegister = {
+                    navController.navigate(NavRoutes.REGISTER)
+                }
+            )
         }
 
         composable(NavRoutes.REGISTER) {
-            PlaceholderScreen("Registro")
+            RegisterRoute(
+                onRegisterSuccess = {
+                    navController.navigateToHomeClearingBackStack()
+                },
+                onGoToLogin = {
+                    navController.popBackStack()
+                }
+            )
         }
 
         composable(NavRoutes.HOME) {
-            PlaceholderScreen("Inicio")
-        }
-
-        composable(NavRoutes.ROOM) {
-            PlaceholderScreen("Mi Habitación")
-        }
-
-        composable(NavRoutes.PROFILES) {
-            PlaceholderScreen("Perfiles")
-        }
-
-        composable(NavRoutes.HISTORY) {
-            PlaceholderScreen("Historial")
-        }
-
-        composable(NavRoutes.SETTINGS) {
-            PlaceholderScreen("Configuración")
-        }
-
-        composable(NavRoutes.MANUAL_CONTROL) {
-            PlaceholderScreen("Control Manual")
-        }
-
-        composable(NavRoutes.SYSTEM_MODES) {
-            PlaceholderScreen("Modos del Sistema")
+            MainAppRoute(
+                onLogout = {
+                    navController.navigateToLoginClearingBackStack()
+                }
+            )
         }
     }
 }
 
-@Composable
-private fun PlaceholderScreen(title: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text = title)
+private fun NavHostController.navigateToHomeClearingBackStack() {
+    navigate(NavRoutes.HOME) {
+        popUpTo(0) {
+            inclusive = true
+        }
+        launchSingleTop = true
+    }
+}
+
+private fun NavHostController.navigateToLoginClearingBackStack() {
+    navigate(NavRoutes.LOGIN) {
+        popUpTo(0) {
+            inclusive = true
+        }
+        launchSingleTop = true
     }
 }
