@@ -12,6 +12,17 @@ target/
 android/**/local.properties
 android/**/.gradle/
 android/**/build/
+android/**/*.iml
+android/**/.idea/caches/
+android/**/.idea/libraries/
+android/**/.idea/modules.xml
+android/**/.idea/workspace.xml
+android/**/.idea/navEditor.xml
+android/**/.idea/assetWizardSettings.xml
+android/**/.DS_Store/
+android/**/captures/
+android/**/.externalNativeBuild/
+android/**/.cxx/
 
 # Arduino
 *.ino.cpp
