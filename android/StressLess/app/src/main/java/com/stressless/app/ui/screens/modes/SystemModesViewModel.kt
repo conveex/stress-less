@@ -19,9 +19,44 @@ class SystemModesViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(SystemModesUiState())
     val uiState: StateFlow<SystemModesUiState> = _uiState.asStateFlow()
 
-    fun changeMode(mode: String) {
+    init {
+        loadCurrentMode()
+    }
+
+    fun loadCurrentMode() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
+                isLoading = true,
+                message = null,
+                errorMessage = null
+            )
+
+            when (val result = appRepository.getHome()) {
+                is ApiResult.Success -> {
+                    val hub = result.data.hub
+
+                    _uiState.value = _uiState.value.copy(
+                        hubLogicalId = hub?.hubLogicalId ?: "hub-001",
+                        selectedMode = hub?.operationalState ?: "ACTIVE",
+                        isLoading = false
+                    )
+                }
+
+                is ApiResult.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun changeMode(mode: String) {
+        viewModelScope.launch {
+            val current = _uiState.value
+
+            _uiState.value = current.copy(
                 selectedMode = mode,
                 isLoading = true,
                 message = null,
@@ -30,7 +65,7 @@ class SystemModesViewModel @Inject constructor(
 
             when (
                 val result = appRepository.changeOperationalState(
-                    hubLogicalId = _uiState.value.hubLogicalId,
+                    hubLogicalId = current.hubLogicalId,
                     state = mode
                 )
             ) {
@@ -45,6 +80,7 @@ class SystemModesViewModel @Inject constructor(
 
                 is ApiResult.Error -> {
                     _uiState.value = _uiState.value.copy(
+                        selectedMode = current.selectedMode,
                         isLoading = false,
                         errorMessage = result.message
                     )

@@ -38,6 +38,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.stressless.app.data.remote.dto.app.AppHomeResponseDto
 import com.stressless.app.ui.components.ErrorState
 import com.stressless.app.ui.components.LoadingState
+import com.stressless.app.util.isHubEffectivelyOnline
+import com.stressless.app.util.isRecentlySeen
+import com.stressless.app.util.relativeSeenText
 import kotlin.math.roundToInt
 
 @Composable
@@ -239,8 +242,16 @@ private fun BiometricsSummaryCard(data: AppHomeResponseDto) {
                 progress = normalizedProgress(stress.movementAtDetection, 0.0, 1.0)
             )
 
+            val bandOnline = isRecentlySeen(data.band?.lastSeenAt)
+
             Text(
-                text = "Pulsera: ${data.band?.status ?: "Sin pulsera"} · Batería: ${data.band?.batteryLevel?.toString() ?: "--"}%",
+                text = "Pulsera: ${if (bandOnline) "En línea" else "Desconectada"} · Batería: ${data.band?.batteryLevel?.toString() ?: "--"}%",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Text(
+                text = "Última conexión: ${relativeSeenText(data.band?.lastSeenAt)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -283,13 +294,19 @@ private fun MetricRow(
 
 @Composable
 private fun RoomSummaryCard(data: AppHomeResponseDto) {
+    val hubOnline = isHubEffectivelyOnline(
+        status = data.hub?.status,
+        lastSeenAt = data.hub?.lastSeenAt,
+        ipAddress = data.hub?.ipAddress
+    )
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp)
     ) {
         Column(
             modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(
                 text = data.room?.name ?: "Habitación",
@@ -297,12 +314,16 @@ private fun RoomSummaryCard(data: AppHomeResponseDto) {
                 fontWeight = FontWeight.Bold
             )
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 AssistChip(
                     onClick = { },
-                    label = { Text(data.hub?.status ?: "Hub sin dato") },
+                    label = {
+                        Text(
+                            text = if (hubOnline) "Hub en línea" else "Hub desconectado"
+                        )
+                    },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Outlined.SettingsRemote,
@@ -313,7 +334,9 @@ private fun RoomSummaryCard(data: AppHomeResponseDto) {
 
                 AssistChip(
                     onClick = { },
-                    label = { Text(data.hub?.operationalState ?: "Sin modo") },
+                    label = {
+                        Text(data.hub?.operationalState ?: "Sin modo")
+                    },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Outlined.Spa,
@@ -323,21 +346,23 @@ private fun RoomSummaryCard(data: AppHomeResponseDto) {
                 )
             }
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                DeviceMiniStatus(
-                    icon = Icons.Outlined.Lightbulb,
-                    label = "Perfil",
-                    value = data.activeProfile?.name ?: "Sin perfil"
-                )
+            Text(
+                text = "Última conexión hub: ${relativeSeenText(data.hub?.lastSeenAt)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
-                DeviceMiniStatus(
-                    icon = Icons.Outlined.Air,
-                    label = "Últ. comando",
-                    value = data.lastCommand?.status ?: "Sin comando"
-                )
-            }
+            DeviceMiniStatus(
+                icon = Icons.Outlined.Lightbulb,
+                label = "Perfil",
+                value = data.activeProfile?.name ?: "Sin perfil"
+            )
+
+            DeviceMiniStatus(
+                icon = Icons.Outlined.Air,
+                label = "Último comando",
+                value = data.lastCommand?.status ?: "Sin comando"
+            )
         }
     }
 }

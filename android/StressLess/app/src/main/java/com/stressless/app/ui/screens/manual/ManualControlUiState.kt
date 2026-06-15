@@ -17,5 +17,8 @@ data class ManualControlUiState(
 
     val isLoading: Boolean = false,
     val message: String? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+
+    val lastCommandId: String? = null,
+    val commandStatus: String? = null
 )

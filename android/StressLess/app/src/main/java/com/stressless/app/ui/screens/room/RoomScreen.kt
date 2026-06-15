@@ -37,6 +37,8 @@ import com.stressless.app.data.remote.dto.app.RoomDeviceResponseDto
 import com.stressless.app.data.remote.dto.app.RoomPrimaryResponseDto
 import com.stressless.app.ui.components.ErrorState
 import com.stressless.app.ui.components.LoadingState
+import com.stressless.app.util.isRecentlySeen
+import com.stressless.app.util.relativeSeenText
 
 @Composable
 fun RoomRoute(
@@ -128,6 +130,7 @@ private fun RoomScreen(
 @Composable
 private fun HubStatusCard(data: RoomPrimaryResponseDto) {
     val hub = data.hub
+    val hubOnline = isRecentlySeen(hub?.lastSeenAt)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -159,7 +162,12 @@ private fun HubStatusCard(data: RoomPrimaryResponseDto) {
             Text(hub?.hubLogicalId ?: "Sin hub vinculado")
 
             Text(
-                text = "Estado: ${hub?.status ?: "--"} · Operación: ${hub?.operationalState ?: "--"}",
+                text = "Estado: ${if (hubOnline) "En línea" else "Desconectado"} · Operación: ${hub?.operationalState ?: "--"}",
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Text(
+                text = "Última conexión: ${relativeSeenText(hub?.lastSeenAt)}",
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 

@@ -85,6 +85,7 @@ object MqttClientService {
 
                 log.info("MQTT message received | topic={} | payload={}", topic, payload)
                 com.stressless.mqtt.handlers.BiometricsMqttHandler.handle(topic, payload)
+                com.stressless.mqtt.handlers.HubStatusMqttHandler.handle(topic, payload)
                 com.stressless.mqtt.handlers.HubEventsMqttHandler.handle(topic, payload)
             }
             .send()

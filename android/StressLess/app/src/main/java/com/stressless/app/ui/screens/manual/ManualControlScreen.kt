@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.SettingsRemote
 import androidx.compose.material.icons.outlined.Speaker
 import androidx.compose.material.icons.outlined.Subtitles
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
@@ -153,6 +154,15 @@ private fun ManualControlScreen(
                 )
             }
 
+            uiState.commandStatus?.let {
+                AssistChip(
+                    onClick = { },
+                    label = {
+                        Text("Estado comando: $it")
+                    }
+                )
+            }
+
             uiState.errorMessage?.let {
                 Text(
                     text = it,
@@ -195,15 +205,62 @@ private fun LedControlCard(
             valueRange = 0f..100f
         )
 
-        Text("Color")
+        Text("Color HEX")
 
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        OutlinedTextField(
+            value = uiState.ledColorHex,
+            onValueChange = onLedColorChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Ejemplo: #00FFAA") },
+            singleLine = true
+        )
+
+        Text(
+            text = "Colores rápidos",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            ColorChip("#00FFAA", uiState.ledColorHex, onLedColorChange)
-            ColorChip("#00AAFF", uiState.ledColorHex, onLedColorChange)
-            ColorChip("#FFB000", uiState.ledColorHex, onLedColorChange)
-            ColorChip("#FFFFFF", uiState.ledColorHex, onLedColorChange)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ColorChip(
+                    color = "#00FFAA",
+                    selected = uiState.ledColorHex,
+                    onClick = onLedColorChange,
+                    modifier = Modifier.weight(1f)
+                )
+
+                ColorChip(
+                    color = "#00AAFF",
+                    selected = uiState.ledColorHex,
+                    onClick = onLedColorChange,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ColorChip(
+                    color = "#FFB000",
+                    selected = uiState.ledColorHex,
+                    onClick = onLedColorChange,
+                    modifier = Modifier.weight(1f)
+                )
+
+                ColorChip(
+                    color = "#FFFFFF",
+                    selected = uiState.ledColorHex,
+                    onClick = onLedColorChange,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
 
         Button(
@@ -382,12 +439,16 @@ private fun ControlCard(
 private fun ColorChip(
     color: String,
     selected: String,
-    onClick: (String) -> Unit
+    onClick: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     FilterChip(
         selected = color == selected,
         onClick = { onClick(color) },
-        label = { Text(color) }
+        label = {
+            Text(color)
+        },
+        modifier = modifier
     )
 }
 

@@ -7,6 +7,7 @@ import com.stressless.app.data.remote.dto.app.ManualHubCommandRequestDto
 import com.stressless.app.data.repository.AppRepository
 import com.stressless.app.util.ApiResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,7 +32,13 @@ class ManualControlViewModel @Inject constructor(
     }
 
     fun onLedColorChange(value: String) {
-        _uiState.value = _uiState.value.copy(ledColorHex = value)
+        val cleaned = value
+            .uppercase()
+            .take(7)
+
+        _uiState.value = _uiState.value.copy(
+            ledColorHex = cleaned
+        )
     }
 
     fun onFanOnChange(value: Boolean) {
@@ -58,6 +65,14 @@ class ManualControlViewModel @Inject constructor(
 
     fun sendLedCommand() {
         val state = _uiState.value
+
+        if (!isValidHexColor(state.ledColorHex)) {
+            _uiState.value = state.copy(
+                errorMessage = "Color HEX inválido. Usa formato #RRGGBB.",
+                message = null
+            )
+            return
+        }
 
         val actions = mutableListOf<ManualHubActionRequestDto>()
 
@@ -251,11 +266,17 @@ class ManualControlViewModel @Inject constructor(
                 )
             ) {
                 is ApiResult.Success -> {
+                    val commandId = result.data.commandId
+
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        message = "Comando enviado: ${result.data.commandId}",
-                        errorMessage = null
+                        message = "Comando enviado. Esperando ACK...",
+                        errorMessage = null,
+                        lastCommandId = commandId,
+                        commandStatus = result.data.status
                     )
+
+                    waitForCommandAck(commandId)
                 }
 
                 is ApiResult.Error -> {
@@ -264,6 +285,48 @@ class ManualControlViewModel @Inject constructor(
                         errorMessage = result.message
                     )
                 }
+            }
+        }
+    }
+
+    private fun isValidHexColor(value: String): Boolean {
+        return Regex("^#[0-9A-Fa-f]{6}$").matches(value)
+    }
+
+    private fun waitForCommandAck(commandId: String) {
+        viewModelScope.launch {
+            repeat(5) {
+                delay(700)
+
+                when (val result = appRepository.getHome()) {
+                    is ApiResult.Success -> {
+                        val lastCommand = result.data.lastCommand
+
+                        if (lastCommand?.commandId == commandId) {
+                            _uiState.value = _uiState.value.copy(
+                                commandStatus = lastCommand.status,
+                                message = when (lastCommand.status) {
+                                    "ACKNOWLEDGED" -> "Comando ejecutado por el hub."
+                                    "FAILED" -> "El hub reportó error al ejecutar el comando."
+                                    else -> "Comando enviado. Estado: ${lastCommand.status}"
+                                }
+                            )
+
+                            if (lastCommand.status == "ACKNOWLEDGED" || lastCommand.status == "FAILED") {
+                                return@launch
+                            }
+                        }
+                    }
+
+                    is ApiResult.Error -> {
+                    }
+                }
+            }
+
+            if (_uiState.value.commandStatus != "ACKNOWLEDGED") {
+                _uiState.value = _uiState.value.copy(
+                    message = "Comando enviado, pero no se confirmó ACK todavía."
+                )
             }
         }
     }
