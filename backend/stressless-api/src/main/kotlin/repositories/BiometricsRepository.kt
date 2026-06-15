@@ -346,4 +346,31 @@ object BiometricsRepository {
             }
         }
     }
+
+    fun getHubOperationalState(hubUuid: UUID): String {
+        DatabaseFactory.getDataSource().connection.use { connection ->
+            val sql = """
+            SELECT operational_state::text
+            FROM hubs
+            WHERE id = ?
+            LIMIT 1
+        """.trimIndent()
+
+            connection.prepareStatement(sql).use { statement ->
+                statement.setObject(1, hubUuid)
+
+                statement.executeQuery().use { rs ->
+                    if (!rs.next()) {
+                        return "ACTIVE"
+                    }
+
+                    return rs.getString("operational_state") ?: "ACTIVE"
+                }
+            }
+        }
+    }
+
+    fun shouldRunAutomation(operationalState: String): Boolean {
+        return operationalState == "ACTIVE"
+    }
 }

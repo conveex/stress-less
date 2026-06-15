@@ -45,6 +45,28 @@ object BiometricsMqttHandler {
             val biometricEventId = BiometricsRepository.saveBiometricEvent(payload, context)
             BiometricsRepository.updateBandLastSeen(payload)
 
+            val operationalState = BiometricsRepository.getHubOperationalState(context.hubUuid)
+
+            if (operationalState == "PAUSED") {
+                log.info(
+                    "Biometrics saved but processing skipped because hub is PAUSED. eventId={} bandId={} hubId={}",
+                    biometricEventId,
+                    payload.bandId,
+                    payload.hubId
+                )
+                return
+            }
+
+            if (operationalState == "EXIT_MODE") {
+                log.info(
+                    "Biometrics saved but automation skipped because hub is in EXIT_MODE. eventId={} bandId={} hubId={}",
+                    biometricEventId,
+                    payload.bandId,
+                    payload.hubId
+                )
+                return
+            }
+
             val classification = StressClassifierService.classify(
                 payload = payload,
                 baselineBpm = context.baselineBpm,
@@ -52,10 +74,16 @@ object BiometricsMqttHandler {
                 baselineMovement = context.baselineMovement
             )
 
-            val activeProfileId = BiometricsRepository.findActiveProfileId(
-                userId = context.userId,
-                state = classification.state
-            )
+            val allowAutomation = operationalState == "ACTIVE"
+
+            val activeProfileId = if (allowAutomation) {
+                BiometricsRepository.findActiveProfileId(
+                    userId = context.userId,
+                    state = classification.state
+                )
+            } else {
+                null
+            }
 
             val detectedStateId = BiometricsRepository.saveDetectedState(
                 context = context,
@@ -64,11 +92,12 @@ object BiometricsMqttHandler {
             )
 
             log.info(
-                "Biometrics processed. eventId={} stateId={} state={} confidence={}",
+                "Biometrics processed. eventId={} stateId={} state={} confidence={} operationalState={}",
                 biometricEventId,
                 detectedStateId,
                 classification.state,
-                classification.confidence
+                classification.confidence,
+                operationalState
             )
 
             publishUserStressState(
@@ -76,6 +105,17 @@ object BiometricsMqttHandler {
                 payload = payload,
                 classification = classification
             )
+
+            if (!allowAutomation) {
+                log.info(
+                    "Detected state saved but automation skipped. state={} userId={} hubId={} operationalState={}",
+                    classification.state,
+                    context.userId,
+                    payload.hubId,
+                    operationalState
+                )
+                return
+            }
 
             if (shouldPublishCommand(classification.state, classification.confidence, activeProfileId)) {
                 val lastAppliedState = BiometricsRepository.findLastAutomationCommandState(context)

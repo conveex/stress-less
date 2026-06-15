@@ -20,12 +20,26 @@ class HomeViewModel @Inject constructor(
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     init {
-        loadHome()
+        startAutoRefresh()
     }
 
-    fun loadHome() {
+    private fun startAutoRefresh() {
         viewModelScope.launch {
-            _uiState.value = HomeUiState(isLoading = true)
+            while (true) {
+                loadHome(showLoading = _uiState.value.data == null)
+                kotlinx.coroutines.delay(5000)
+            }
+        }
+    }
+
+    fun loadHome(showLoading: Boolean = true) {
+        viewModelScope.launch {
+            if (showLoading) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = true,
+                    errorMessage = null
+                )
+            }
 
             when (val result = appRepository.getHome()) {
                 is ApiResult.Success -> {
@@ -36,7 +50,7 @@ class HomeViewModel @Inject constructor(
                 }
 
                 is ApiResult.Error -> {
-                    _uiState.value = HomeUiState(
+                    _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = result.message
                     )

@@ -2,6 +2,7 @@ package com.stressless.app.ui.screens.manual
 
 data class ManualControlUiState(
     val hubLogicalId: String = "hub-001",
+    val operationalState: String = "ACTIVE",
 
     val ledOn: Boolean = true,
     val ledBrightness: Float = 50f,

@@ -9,17 +9,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Air
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lightbulb
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.SettingsRemote
 import androidx.compose.material.icons.outlined.Speaker
 import androidx.compose.material.icons.outlined.Subtitles
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,7 +31,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -79,6 +81,9 @@ private fun ManualControlScreen(
     onSendBuzzer: () -> Unit,
     onSendAll: () -> Unit
 ) {
+    val manualEnabled = uiState.operationalState == "MANUAL"
+    val controlsEnabled = manualEnabled && !uiState.isLoading
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -102,8 +107,14 @@ private fun ManualControlScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+            CurrentModeCard(
+                operationalState = uiState.operationalState,
+                manualEnabled = manualEnabled
+            )
+
             LedControlCard(
                 uiState = uiState,
+                enabled = controlsEnabled,
                 onLedOnChange = onLedOnChange,
                 onLedBrightnessChange = onLedBrightnessChange,
                 onLedColorChange = onLedColorChange,
@@ -112,6 +123,7 @@ private fun ManualControlScreen(
 
             FanControlCard(
                 uiState = uiState,
+                enabled = controlsEnabled,
                 onFanOnChange = onFanOnChange,
                 onFanSpeedChange = onFanSpeedChange,
                 onSendFan = onSendFan
@@ -119,12 +131,14 @@ private fun ManualControlScreen(
 
             LcdControlCard(
                 uiState = uiState,
+                enabled = controlsEnabled,
                 onLcdMessageChange = onLcdMessageChange,
                 onSendLcd = onSendLcd
             )
 
             BuzzerControlCard(
                 uiState = uiState,
+                enabled = controlsEnabled,
                 onBuzzerOnChange = onBuzzerOnChange,
                 onBuzzerVolumeChange = onBuzzerVolumeChange,
                 onSendBuzzer = onSendBuzzer
@@ -132,7 +146,7 @@ private fun ManualControlScreen(
 
             Button(
                 onClick = onSendAll,
-                enabled = !uiState.isLoading,
+                enabled = controlsEnabled,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp)
             ) {
@@ -150,7 +164,8 @@ private fun ManualControlScreen(
             uiState.message?.let {
                 Text(
                     text = it,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
 
@@ -166,7 +181,54 @@ private fun ManualControlScreen(
             uiState.errorMessage?.let {
                 Text(
                     text = it,
-                    color = MaterialTheme.colorScheme.error
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CurrentModeCard(
+    operationalState: String,
+    manualEnabled: Boolean
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = if (manualEnabled) Icons.Outlined.Info else Icons.Outlined.Lock,
+                contentDescription = null,
+                tint = if (manualEnabled) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.error
+                }
+            )
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "Modo actual: ${operationalStateLabel(operationalState)}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text(
+                    text = if (manualEnabled) {
+                        "Puedes enviar comandos manuales al hub."
+                    } else {
+                        "El control manual está bloqueado. Activa el modo MANUAL para enviar comandos."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -176,6 +238,7 @@ private fun ManualControlScreen(
 @Composable
 private fun LedControlCard(
     uiState: ManualControlUiState,
+    enabled: Boolean,
     onLedOnChange: (Boolean) -> Unit,
     onLedBrightnessChange: (Float) -> Unit,
     onLedColorChange: (String) -> Unit,
@@ -193,7 +256,8 @@ private fun LedControlCard(
             Text("Encendido")
             Switch(
                 checked = uiState.ledOn,
-                onCheckedChange = onLedOnChange
+                onCheckedChange = onLedOnChange,
+                enabled = enabled
             )
         }
 
@@ -202,7 +266,8 @@ private fun LedControlCard(
         Slider(
             value = uiState.ledBrightness,
             onValueChange = onLedBrightnessChange,
-            valueRange = 0f..100f
+            valueRange = 0f..100f,
+            enabled = enabled
         )
 
         Text("Color HEX")
@@ -212,7 +277,8 @@ private fun LedControlCard(
             onValueChange = onLedColorChange,
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Ejemplo: #00FFAA") },
-            singleLine = true
+            singleLine = true,
+            enabled = enabled
         )
 
         Text(
@@ -231,6 +297,7 @@ private fun LedControlCard(
                 ColorChip(
                     color = "#00FFAA",
                     selected = uiState.ledColorHex,
+                    enabled = enabled,
                     onClick = onLedColorChange,
                     modifier = Modifier.weight(1f)
                 )
@@ -238,6 +305,7 @@ private fun LedControlCard(
                 ColorChip(
                     color = "#00AAFF",
                     selected = uiState.ledColorHex,
+                    enabled = enabled,
                     onClick = onLedColorChange,
                     modifier = Modifier.weight(1f)
                 )
@@ -250,6 +318,7 @@ private fun LedControlCard(
                 ColorChip(
                     color = "#FFB000",
                     selected = uiState.ledColorHex,
+                    enabled = enabled,
                     onClick = onLedColorChange,
                     modifier = Modifier.weight(1f)
                 )
@@ -257,6 +326,7 @@ private fun LedControlCard(
                 ColorChip(
                     color = "#FFFFFF",
                     selected = uiState.ledColorHex,
+                    enabled = enabled,
                     onClick = onLedColorChange,
                     modifier = Modifier.weight(1f)
                 )
@@ -265,7 +335,7 @@ private fun LedControlCard(
 
         Button(
             onClick = onSendLed,
-            enabled = !uiState.isLoading,
+            enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp)
         ) {
@@ -277,6 +347,7 @@ private fun LedControlCard(
 @Composable
 private fun FanControlCard(
     uiState: ManualControlUiState,
+    enabled: Boolean,
     onFanOnChange: (Boolean) -> Unit,
     onFanSpeedChange: (String) -> Unit,
     onSendFan: () -> Unit
@@ -293,21 +364,39 @@ private fun FanControlCard(
             Text("Encendido")
             Switch(
                 checked = uiState.fanOn,
-                onCheckedChange = onFanOnChange
+                onCheckedChange = onFanOnChange,
+                enabled = enabled
             )
         }
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            SpeedChip("LOW", uiState.fanSpeed, onFanSpeedChange)
-            SpeedChip("MEDIUM", uiState.fanSpeed, onFanSpeedChange)
-            SpeedChip("HIGH", uiState.fanSpeed, onFanSpeedChange)
+            SpeedChip(
+                speed = "LOW",
+                selected = uiState.fanSpeed,
+                enabled = enabled,
+                onClick = onFanSpeedChange
+            )
+
+            SpeedChip(
+                speed = "MEDIUM",
+                selected = uiState.fanSpeed,
+                enabled = enabled,
+                onClick = onFanSpeedChange
+            )
+
+            SpeedChip(
+                speed = "HIGH",
+                selected = uiState.fanSpeed,
+                enabled = enabled,
+                onClick = onFanSpeedChange
+            )
         }
 
         Button(
             onClick = onSendFan,
-            enabled = !uiState.isLoading,
+            enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp)
         ) {
@@ -319,6 +408,7 @@ private fun FanControlCard(
 @Composable
 private fun LcdControlCard(
     uiState: ManualControlUiState,
+    enabled: Boolean,
     onLcdMessageChange: (String) -> Unit,
     onSendLcd: () -> Unit
 ) {
@@ -333,6 +423,7 @@ private fun LcdControlCard(
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Mensaje") },
             singleLine = true,
+            enabled = enabled,
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.Sentences
             )
@@ -346,7 +437,7 @@ private fun LcdControlCard(
 
         Button(
             onClick = onSendLcd,
-            enabled = !uiState.isLoading,
+            enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp)
         ) {
@@ -358,6 +449,7 @@ private fun LcdControlCard(
 @Composable
 private fun BuzzerControlCard(
     uiState: ManualControlUiState,
+    enabled: Boolean,
     onBuzzerOnChange: (Boolean) -> Unit,
     onBuzzerVolumeChange: (Float) -> Unit,
     onSendBuzzer: () -> Unit
@@ -374,7 +466,8 @@ private fun BuzzerControlCard(
             Text("Encendido")
             Switch(
                 checked = uiState.buzzerOn,
-                onCheckedChange = onBuzzerOnChange
+                onCheckedChange = onBuzzerOnChange,
+                enabled = enabled
             )
         }
 
@@ -383,12 +476,13 @@ private fun BuzzerControlCard(
         Slider(
             value = uiState.buzzerVolume,
             onValueChange = onBuzzerVolumeChange,
-            valueRange = 0f..100f
+            valueRange = 0f..100f,
+            enabled = enabled
         )
 
         Button(
             onClick = onSendBuzzer,
-            enabled = !uiState.isLoading,
+            enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp)
         ) {
@@ -439,12 +533,14 @@ private fun ControlCard(
 private fun ColorChip(
     color: String,
     selected: String,
+    enabled: Boolean,
     onClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     FilterChip(
         selected = color == selected,
         onClick = { onClick(color) },
+        enabled = enabled,
         label = {
             Text(color)
         },
@@ -456,11 +552,25 @@ private fun ColorChip(
 private fun SpeedChip(
     speed: String,
     selected: String,
+    enabled: Boolean,
     onClick: (String) -> Unit
 ) {
     FilterChip(
         selected = speed == selected,
         onClick = { onClick(speed) },
-        label = { Text(speed) }
+        enabled = enabled,
+        label = {
+            Text(speed)
+        }
     )
+}
+
+private fun operationalStateLabel(state: String): String {
+    return when (state) {
+        "ACTIVE" -> "AUTOMÁTICO"
+        "PAUSED" -> "PAUSADO"
+        "MANUAL" -> "MANUAL"
+        "EXIT_MODE" -> "MODO SALIDA"
+        else -> state
+    }
 }

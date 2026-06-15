@@ -40,6 +40,8 @@ import com.stressless.app.ui.components.ErrorState
 import com.stressless.app.ui.components.LoadingState
 import com.stressless.app.util.isHubEffectivelyOnline
 import com.stressless.app.util.isRecentlySeen
+import com.stressless.app.util.operationalStateLabel
+import com.stressless.app.util.physiologicalStateLabel
 import com.stressless.app.util.relativeSeenText
 import kotlin.math.roundToInt
 
@@ -178,7 +180,7 @@ private fun CurrentStateCard(data: AppHomeResponseDto) {
             }
 
             Text(
-                text = stress.detectedState,
+                text = physiologicalStateLabel(stress.detectedState),
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
@@ -335,7 +337,7 @@ private fun RoomSummaryCard(data: AppHomeResponseDto) {
                 AssistChip(
                     onClick = { },
                     label = {
-                        Text(data.hub?.operationalState ?: "Sin modo")
+                        Text(data.hub?.operationalState?.let { operationalStateLabel(it) } ?: "Sin modo")
                     },
                     leadingIcon = {
                         Icon(

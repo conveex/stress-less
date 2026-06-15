@@ -5,7 +5,6 @@ import com.stressless.dto.app.*
 import com.stressless.mqtt.MqttClientService
 import com.hivemq.client.mqtt.datatypes.MqttQos
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.encodeToString
 import java.time.Instant
 import java.util.UUID
 
@@ -249,7 +248,7 @@ object AppRepository {
 
         DatabaseFactory.getDataSource().connection.use { connection ->
             val selectSql = """
-                SELECT h.id, h.operational_state::text
+                SELECT h.id, r.id AS room_id, h.operational_state::text
                 FROM hubs h
                 JOIN rooms r ON r.id = h.room_id
                 WHERE h.hub_id = ?
@@ -257,6 +256,7 @@ object AppRepository {
                 LIMIT 1
             """.trimIndent()
 
+            val roomUuid: UUID
             val hubUuid: UUID
             val previousState: String
 
@@ -268,6 +268,7 @@ object AppRepository {
                     if (!rs.next()) error("Hub not found")
 
                     hubUuid = UUID.fromString(rs.getString("id"))
+                    roomUuid = UUID.fromString(rs.getString("room_id"))
                     previousState = rs.getString("operational_state")
                 }
             }
@@ -285,6 +286,26 @@ object AppRepository {
                 st.executeUpdate()
             }
 
+            if (newState == "EXIT_MODE") {
+                publishExitModeCommand(
+                    connection = connection,
+                    hubUuid = hubUuid,
+                    roomUuid = roomUuid,
+                    userId = userId,
+                    hubLogicalId = hubLogicalId
+                )
+            }
+
+            if (newState == "ACTIVE" && previousState != "ACTIVE") {
+                publishCurrentProfileCommand(
+                    connection = connection,
+                    hubUuid = hubUuid,
+                    roomUuid = roomUuid,
+                    userId = userId,
+                    hubLogicalId = hubLogicalId
+                )
+            }
+
             return ChangeOperationalStateResponse(
                 hubId = hubUuid.toString(),
                 previousState = previousState,
@@ -292,6 +313,223 @@ object AppRepository {
                 changedAt = Instant.now().toString()
             )
         }
+    }
+
+    private fun publishCurrentProfileCommand(
+        connection: java.sql.Connection,
+        hubUuid: UUID,
+        roomUuid: UUID,
+        userId: UUID,
+        hubLogicalId: String
+    ) {
+        val latestStateSql = """
+        SELECT id, state::text
+        FROM detected_states
+        WHERE user_id = ?
+          AND hub_id = ?
+        ORDER BY detected_at DESC
+        LIMIT 1
+    """.trimIndent()
+
+        val detectedStateId: UUID
+        val currentState: String
+
+        connection.prepareStatement(latestStateSql).use { st ->
+            st.setObject(1, userId)
+            st.setObject(2, hubUuid)
+
+            st.executeQuery().use { rs ->
+                if (!rs.next()) {
+                    return
+                }
+
+                detectedStateId = UUID.fromString(rs.getString("id"))
+                currentState = rs.getString("state")
+            }
+        }
+
+        val profileSql = """
+        SELECT id
+        FROM environment_profiles
+        WHERE user_id = ?
+          AND target_state = ?::physiological_state_enum
+          AND is_active = true
+        LIMIT 1
+    """.trimIndent()
+
+        val profileId: UUID
+
+        connection.prepareStatement(profileSql).use { st ->
+            st.setObject(1, userId)
+            st.setString(2, currentState)
+
+            st.executeQuery().use { rs ->
+                if (!rs.next()) {
+                    return
+                }
+
+                profileId = UUID.fromString(rs.getString("id"))
+            }
+        }
+
+        val actionsSql = """
+        SELECT
+            d.device_key,
+            pa.action::text AS action,
+            pa.value::text AS value
+        FROM profile_actions pa
+        JOIN devices d ON d.id = pa.device_id
+        WHERE pa.profile_id = ?
+        ORDER BY pa.order_index ASC
+    """.trimIndent()
+
+        val actions = mutableListOf<String>()
+
+        connection.prepareStatement(actionsSql).use { st ->
+            st.setObject(1, profileId)
+
+            st.executeQuery().use { rs ->
+                while (rs.next()) {
+                    val deviceKey = rs.getString("device_key")
+                    val action = rs.getString("action")
+                    val rawValue = rs.getString("value")
+
+                    actions.add(
+                        """
+                    {
+                      "deviceKey": "$deviceKey",
+                      "action": "$action",
+                      "value": $rawValue
+                    }
+                    """.trimIndent()
+                    )
+                }
+            }
+        }
+
+        if (actions.isEmpty()) {
+            return
+        }
+
+        val commandId = UUID.randomUUID().toString()
+
+        val actionsJson = actions.joinToString(
+            separator = ",\n",
+            prefix = "[\n",
+            postfix = "\n]"
+        )
+
+        val payloadJson = """
+        {
+          "commandId": "$commandId",
+          "hubId": "$hubLogicalId",
+          "source": "AUTOMATION",
+          "triggeredByState": "$currentState",
+          "reason": "REAPPLY_PROFILE_AFTER_ACTIVE_MODE",
+          "actions": $actionsJson,
+          "timestamp": "${Instant.now()}"
+        }
+    """.trimIndent()
+
+        val insertSql = """
+        INSERT INTO commands (
+            hub_id,
+            room_id,
+            user_id,
+            source,
+            triggered_by_state,
+            payload,
+            status,
+            sent_at
+        )
+        VALUES (?, ?, ?, 'AUTOMATION'::command_source_enum, ?, ?::jsonb, 'SENT'::command_status_enum, NOW())
+    """.trimIndent()
+
+        connection.prepareStatement(insertSql).use { st ->
+            st.setObject(1, hubUuid)
+            st.setObject(2, roomUuid)
+            st.setObject(3, userId)
+            st.setObject(4, detectedStateId)
+            st.setString(5, payloadJson)
+            st.executeUpdate()
+        }
+
+        MqttClientService.publishJson(
+            topic = "stressless/hub/$hubLogicalId/commands",
+            payload = payloadJson,
+            qos = MqttQos.AT_LEAST_ONCE,
+            retain = false
+        )
+    }
+
+    private fun publishExitModeCommand(
+        connection: java.sql.Connection,
+        hubUuid: UUID,
+        roomUuid: UUID,
+        userId: UUID,
+        hubLogicalId: String
+    ) {
+        val commandId = UUID.randomUUID().toString()
+
+        val payloadJson = """
+        {
+          "commandId": "$commandId",
+          "hubId": "$hubLogicalId",
+          "source": "MANUAL_APP",
+          "actions": [
+            {
+              "deviceKey": "led-rgb-001",
+              "action": "TURN_OFF",
+              "value": false
+            },
+            {
+              "deviceKey": "fan-001",
+              "action": "TURN_OFF",
+              "value": false
+            },
+            {
+              "deviceKey": "display-001",
+              "action": "SHOW_MESSAGE",
+              "value": "Modo salida"
+            },
+            {
+              "deviceKey": "buzzer-001",
+              "action": "TURN_OFF",
+              "value": false
+            }
+          ],
+          "timestamp": "${Instant.now()}"
+        }
+    """.trimIndent()
+
+        val insertSql = """
+        INSERT INTO commands (
+            hub_id,
+            room_id,
+            user_id,
+            source,
+            triggered_by_state,
+            payload,
+            status,
+            sent_at
+        )
+        VALUES (?, ?, ?, 'MANUAL_APP'::command_source_enum, NULL, ?::jsonb, 'SENT'::command_status_enum, NOW())
+    """.trimIndent()
+
+        connection.prepareStatement(insertSql).use { st ->
+            st.setObject(1, hubUuid)
+            st.setObject(2, roomUuid)
+            st.setObject(3, userId)
+            st.setString(4, payloadJson)
+            st.executeUpdate()
+        }
+
+        MqttClientService.publishJson(
+            topic = "stressless/hub/$hubLogicalId/commands",
+            payload = payloadJson,
+            qos = MqttQos.AT_LEAST_ONCE,
+            retain = false
+        )
     }
 
     fun sendManualCommand(

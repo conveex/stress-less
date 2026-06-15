@@ -23,6 +23,31 @@ class ManualControlViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ManualControlUiState())
     val uiState: StateFlow<ManualControlUiState> = _uiState.asStateFlow()
 
+    init {
+        loadHubMode()
+    }
+
+    fun loadHubMode() {
+        viewModelScope.launch {
+            when (val result = appRepository.getHome()) {
+                is ApiResult.Success -> {
+                    val hub = result.data.hub
+
+                    _uiState.value = _uiState.value.copy(
+                        hubLogicalId = hub?.hubLogicalId ?: "hub-001",
+                        operationalState = hub?.operationalState ?: "ACTIVE"
+                    )
+                }
+
+                is ApiResult.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = result.message
+                    )
+                }
+            }
+        }
+    }
+
     fun onLedOnChange(value: Boolean) {
         _uiState.value = _uiState.value.copy(ledOn = value)
     }
@@ -251,6 +276,14 @@ class ManualControlViewModel @Inject constructor(
 
     private fun sendActions(actions: List<ManualHubActionRequestDto>) {
         val state = _uiState.value
+
+        if (state.operationalState != "MANUAL") {
+            _uiState.value = state.copy(
+                errorMessage = "Activa el modo MANUAL para controlar los dispositivos.",
+                message = null
+            )
+            return
+        }
 
         viewModelScope.launch {
             _uiState.value = state.copy(
