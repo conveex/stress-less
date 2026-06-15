@@ -5,6 +5,7 @@ import com.stressless.dto.app.*
 import com.stressless.mqtt.MqttClientService
 import com.hivemq.client.mqtt.datatypes.MqttQos
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import java.time.Instant
 import java.util.UUID
 
@@ -137,7 +138,7 @@ object AppRepository {
                                 serialNumber = rs.getString("serial_number"),
                                 isActive = rs.getBoolean("is_active"),
                                 status = rs.getString("status"),
-                                batteryLevel = rs.getObject("battery_level") as Int?,
+                                batteryLevel = (rs.getObject("battery_level") as? Number)?.toInt(),
                                 lastSeenAt = rs.getTimestamp("last_seen_at")?.toInstant()?.toString(),
                                 createdAt = rs.getTimestamp("created_at").toInstant().toString()
                             )
@@ -352,7 +353,7 @@ object AppRepository {
                     status,
                     sent_at
                 )
-                VALUES (?, ?, ?, 'MANUAL_APP', NULL, ?::jsonb, 'SENT', NOW())
+                VALUES (?, ?, ?, 'MANUAL_APP'::command_source_enum, NULL, ?::jsonb, 'SENT'::command_status_enum, NOW())
             """.trimIndent()
 
             connection.prepareStatement(insertSql).use { st ->
@@ -449,7 +450,7 @@ object AppRepository {
                     bandLogicalId = rs.getString("band_id"),
                     status = rs.getString("status"),
                     isActive = rs.getBoolean("is_active"),
-                    batteryLevel = rs.getObject("battery_level") as Int?,
+                    batteryLevel = (rs.getObject("battery_level") as? Number)?.toInt(),
                     lastSeenAt = rs.getTimestamp("last_seen_at")?.toInstant()?.toString()
                 )
             }
