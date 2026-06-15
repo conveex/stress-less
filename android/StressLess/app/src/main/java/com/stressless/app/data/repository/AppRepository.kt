@@ -2,6 +2,10 @@ package com.stressless.app.data.repository
 
 import com.stressless.app.data.remote.api.AppApi
 import com.stressless.app.data.remote.dto.app.AppHomeResponseDto
+import com.stressless.app.data.remote.dto.app.ChangeOperationalStateRequestDto
+import com.stressless.app.data.remote.dto.app.ChangeOperationalStateResponseDto
+import com.stressless.app.data.remote.dto.app.ManualHubCommandRequestDto
+import com.stressless.app.data.remote.dto.app.ManualHubCommandResponseDto
 import com.stressless.app.data.remote.dto.app.ProfilesResponseDto
 import com.stressless.app.data.remote.dto.app.RoomPrimaryResponseDto
 import com.stressless.app.data.remote.dto.app.StressRecentEventsResponseDto
@@ -69,6 +73,30 @@ class AppRepository @Inject constructor(
             404 -> "No se encontró la información solicitada."
             500 -> "Error interno del servidor."
             else -> "Error inesperado. Código: $code"
+        }
+    }
+
+    suspend fun changeOperationalState(
+        hubLogicalId: String,
+        state: String
+    ): ApiResult<ChangeOperationalStateResponseDto> {
+        return safeCall {
+            appApi.changeOperationalState(
+                hubLogicalId = hubLogicalId,
+                request = ChangeOperationalStateRequestDto(state)
+            )
+        }
+    }
+
+    suspend fun sendManualCommand(
+        hubLogicalId: String,
+        request: ManualHubCommandRequestDto
+    ): ApiResult<ManualHubCommandResponseDto> {
+        return safeCall {
+            appApi.sendManualCommand(
+                hubLogicalId = hubLogicalId,
+                request = request
+            )
         }
     }
 }
