@@ -1,14 +1,21 @@
 package com.stressless.routes
 
 import com.stressless.dto.app.ChangeOperationalStateRequest
+import com.stressless.dto.app.CreateProfileRequest
 import com.stressless.dto.app.ManualHubCommandRequest
+import com.stressless.dto.app.UpdateProfileActiveRequest
+import com.stressless.dto.app.UpdateProfileRequest
 import com.stressless.repositories.AppRepository
 import com.stressless.security.authenticatedUserId
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
+import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
+import io.ktor.server.routing.put
+import java.util.UUID
 
 fun Route.appRoutes() {
     get("/api/v1/app/home") {
@@ -25,6 +32,63 @@ fun Route.appRoutes() {
 
     get("/api/v1/profiles") {
         call.respond(AppRepository.getProfiles(call.authenticatedUserId()))
+    }
+
+    get("/api/v1/profiles/{profileId}") {
+        val profileId = UUID.fromString(
+            call.parameters["profileId"] ?: error("profileId is required")
+        )
+
+        call.respond(
+            AppRepository.getProfileDetail(
+                userId = call.authenticatedUserId(),
+                profileId = profileId
+            )
+        )
+    }
+
+    post("/api/v1/profiles") {
+        val request = call.receive<CreateProfileRequest>()
+
+        call.respond(
+            HttpStatusCode.Created,
+            AppRepository.createProfile(
+                userId = call.authenticatedUserId(),
+                request = request
+            )
+        )
+    }
+
+    put("/api/v1/profiles/{profileId}") {
+        val profileId = UUID.fromString(
+            call.parameters["profileId"] ?: error("profileId is required")
+        )
+
+        val request = call.receive<UpdateProfileRequest>()
+
+        call.respond(
+            AppRepository.updateProfile(
+                userId = call.authenticatedUserId(),
+                profileId = profileId,
+                request = request
+            )
+        )
+    }
+
+    patch("/api/v1/profiles/{profileId}/active") {
+        val profileId = UUID.fromString(
+            call.parameters["profileId"] ?: error("profileId is required")
+        )
+
+        val request = call.receive<UpdateProfileActiveRequest>()
+
+        call.respond(
+            AppRepository.updateProfileActive(
+                userId = call.authenticatedUserId(),
+                profileId = profileId,
+                isActive = request.isActive
+            )
+        )
     }
 
     get("/api/v1/stress/recent-events") {
