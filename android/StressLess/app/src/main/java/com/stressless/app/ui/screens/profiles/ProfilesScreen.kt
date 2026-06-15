@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Spa
 import androidx.compose.material3.AssistChip
@@ -18,12 +20,44 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.stressless.app.data.remote.dto.app.ProfileResponseDto
+import com.stressless.app.ui.components.ErrorState
+import com.stressless.app.ui.components.LoadingState
 
 @Composable
-fun ProfilesRoute() {
+fun ProfilesRoute(
+    viewModel: ProfilesViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    when {
+        uiState.isLoading -> {
+            LoadingState("Cargando perfiles...")
+        }
+
+        uiState.errorMessage != null -> {
+            ErrorState(
+                message = uiState.errorMessage ?: "Error desconocido",
+                onRetry = viewModel::loadProfiles
+            )
+        }
+
+        else -> {
+            ProfilesScreen(uiState.profiles)
+        }
+    }
+}
+
+@Composable
+private fun ProfilesScreen(
+    profiles: List<ProfileResponseDto>
+) {
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -31,6 +65,7 @@ fun ProfilesRoute() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -46,19 +81,16 @@ fun ProfilesRoute() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            ProfileCard(
-                name = "Ambiente normal",
-                targetState = "NORMAL",
-                actions = "5 acciones",
-                enabled = true
-            )
-
-            ProfileCard(
-                name = "Calma profunda",
-                targetState = "HIGH_STRESS",
-                actions = "5 acciones",
-                enabled = true
-            )
+            if (profiles.isEmpty()) {
+                Text(
+                    text = "Aún no hay perfiles ambientales.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                profiles.forEach { profile ->
+                    ProfileCard(profile)
+                }
+            }
 
             OutlinedButton(
                 onClick = { },
@@ -74,10 +106,7 @@ fun ProfilesRoute() {
 
 @Composable
 private fun ProfileCard(
-    name: String,
-    targetState: String,
-    actions: String,
-    enabled: Boolean
+    profile: ProfileResponseDto
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -98,7 +127,7 @@ private fun ProfileCard(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = name,
+                    text = profile.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -108,18 +137,18 @@ private fun ProfileCard(
                 ) {
                     AssistChip(
                         onClick = { },
-                        label = { Text(targetState) }
+                        label = { Text(profile.targetState) }
                     )
 
                     AssistChip(
                         onClick = { },
-                        label = { Text(actions) }
+                        label = { Text("${profile.actionsCount} acciones") }
                     )
                 }
             }
 
             Switch(
-                checked = enabled,
+                checked = profile.isActive,
                 onCheckedChange = null
             )
         }

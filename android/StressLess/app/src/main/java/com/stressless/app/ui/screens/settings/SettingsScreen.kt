@@ -139,7 +139,7 @@ private fun InfoCard() {
                 )
 
                 Text(
-                    text = "Versión 1.0 · Prototipo académico",
+                    text = "Versión 1.0 · Prototipo",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

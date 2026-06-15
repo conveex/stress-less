@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Air
 import androidx.compose.material.icons.outlined.Lightbulb
@@ -25,12 +27,48 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.stressless.app.data.remote.dto.app.RoomDeviceResponseDto
+import com.stressless.app.data.remote.dto.app.RoomPrimaryResponseDto
+import com.stressless.app.ui.components.ErrorState
+import com.stressless.app.ui.components.LoadingState
 
 @Composable
 fun RoomRoute(
+    onGoToManualControl: () -> Unit,
+    viewModel: RoomViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    when {
+        uiState.isLoading -> {
+            LoadingState("Cargando habitación...")
+        }
+
+        uiState.errorMessage != null -> {
+            ErrorState(
+                message = uiState.errorMessage ?: "Error desconocido",
+                onRetry = viewModel::loadRoom
+            )
+        }
+
+        uiState.data != null -> {
+            RoomScreen(
+                data = uiState.data!!,
+                onGoToManualControl = onGoToManualControl
+            )
+        }
+    }
+}
+
+@Composable
+private fun RoomScreen(
+    data: RoomPrimaryResponseDto,
     onGoToManualControl: () -> Unit
 ) {
     Surface(
@@ -40,16 +78,17 @@ fun RoomRoute(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "Mi habitación",
+                text = data.name,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
 
-            HubStatusCard()
+            HubStatusCard(data)
 
             Text(
                 text = "Dispositivos",
@@ -57,37 +96,16 @@ fun RoomRoute(
                 fontWeight = FontWeight.Bold
             )
 
-            DeviceCard(
-                icon = Icons.Outlined.Lightbulb,
-                name = "LED RGB",
-                type = "Iluminación",
-                status = "Disponible",
-                capabilities = listOf("ON/OFF", "BRILLO", "COLOR")
-            )
-
-            DeviceCard(
-                icon = Icons.Outlined.Air,
-                name = "Ventilador",
-                type = "Clima",
-                status = "Disponible",
-                capabilities = listOf("ON/OFF", "VELOCIDAD")
-            )
-
-            DeviceCard(
-                icon = Icons.Outlined.Subtitles,
-                name = "LCD 16x2",
-                type = "Display",
-                status = "Disponible",
-                capabilities = listOf("MENSAJE")
-            )
-
-            DeviceCard(
-                icon = Icons.Outlined.Speaker,
-                name = "Buzzer",
-                type = "Audio",
-                status = "Disponible",
-                capabilities = listOf("ON/OFF", "VOLUMEN")
-            )
+            if (data.devices.isEmpty()) {
+                Text(
+                    text = "No hay dispositivos registrados para esta habitación.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                data.devices.forEach { device ->
+                    DeviceCard(device)
+                }
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -108,7 +126,9 @@ fun RoomRoute(
 }
 
 @Composable
-private fun HubStatusCard() {
+private fun HubStatusCard(data: RoomPrimaryResponseDto) {
+    val hub = data.hub
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
@@ -136,22 +156,26 @@ private fun HubStatusCard() {
                 )
             }
 
-            Text("hub-001")
+            Text(hub?.hubLogicalId ?: "Sin hub vinculado")
+
             Text(
-                text = "Estado: ACTIVE · Operación: Automático",
+                text = "Estado: ${hub?.status ?: "--"} · Operación: ${hub?.operationalState ?: "--"}",
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            if (!hub?.ipAddress.isNullOrBlank()) {
+                Text(
+                    text = "IP local: ${hub?.ipAddress}",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun DeviceCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    name: String,
-    type: String,
-    status: String,
-    capabilities: List<String>
+    device: RoomDeviceResponseDto
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -165,21 +189,27 @@ private fun DeviceCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Icon(
-                    imageVector = icon,
+                    imageVector = iconForDevice(device.type),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
 
                 Column {
                     Text(
-                        text = name,
+                        text = device.name,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
 
                     Text(
-                        text = "$type · $status",
+                        text = "${device.type} · ${if (device.enabled) "Disponible" else "Deshabilitado"}",
                         style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Text(
+                        text = device.deviceKey,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -188,7 +218,7 @@ private fun DeviceCard(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                capabilities.forEach { capability ->
+                device.capabilities.forEach { capability ->
                     AssistChip(
                         onClick = { },
                         label = {
@@ -200,3 +230,12 @@ private fun DeviceCard(
         }
     }
 }
+
+private fun iconForDevice(type: String) =
+    when (type) {
+        "LIGHT" -> Icons.Outlined.Lightbulb
+        "FAN", "CLIMATE" -> Icons.Outlined.Air
+        "DISPLAY" -> Icons.Outlined.Subtitles
+        "AUDIO", "BUZZER" -> Icons.Outlined.Speaker
+        else -> Icons.Outlined.SettingsRemote
+    }
